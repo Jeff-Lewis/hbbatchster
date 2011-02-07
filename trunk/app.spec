@@ -1,5 +1,5 @@
 # -*- mode: python -*-
-a = Analysis([os.path.join(HOMEPATH,'support\\_mountzlib.py'), os.path.join(HOMEPATH,'support\\useUnicode.py'), 'D:\\data\\___small\\HBBatchster\\app.py'],
+a = Analysis([os.path.join(HOMEPATH,'support\\_mountzlib.py'), os.path.join(HOMEPATH,'support\\useUnicode.py'), 'D:\\data\\___small\\HBBatchster\\repository\\hbbatchster\\trunk\\app.py'],
              pathex=['D:\\data\\___small\\HBBatchster\\repository\\hbbatchster\trunk'], excludes=['doctext', 'pdb', 'unittest', 'difflib', 'inspect', '_ssl'])
 pyz = PYZ(a.pure)
 exe = EXE(pyz,
