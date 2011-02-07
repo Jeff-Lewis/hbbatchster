@@ -17,9 +17,9 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir=D:\data\___small\HBBatchster\installer
+OutputDir=D:\data\___small\HBBatchster\repository\hbbatchster\dist
 OutputBaseFilename=HBBatchster_1.0.0.3
-SetupIconFile=D:\data\___small\HBBatchster\handbrakepineapple2.ico
+SetupIconFile=D:\data\___small\HBBatchster\repository\hbbatchster\trunk\handbrakepineapple2.ico
 Compression=lzma
 SolidCompression=yes
 
@@ -31,8 +31,8 @@ Name: desktopicon; Description: {cm:CreateDesktopIcon}; GroupDescription: {cm:Ad
 Name: quicklaunchicon; Description: {cm:CreateQuickLaunchIcon}; GroupDescription: {cm:AdditionalIcons}; Flags: unchecked
 
 [Files]
-Source: D:\data\___small\HBBatchster\dist\app\HBBatchster.exe; DestDir: {app}; Flags: ignoreversion
-Source: D:\data\___small\HBBatchster\dist\app\*; DestDir: {app}; Flags: ignoreversion
+Source: D:\data\___small\HBBatchster\repository\hbbatchster\trunk\dist\app\HBBatchster.exe; DestDir: {app}; Flags: ignoreversion
+Source: D:\data\___small\HBBatchster\repository\hbbatchster\trunk\dist\app\*; DestDir: {app}; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
