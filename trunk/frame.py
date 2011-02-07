@@ -3,9 +3,10 @@
 
 import wx, os, sys, re, ConfigParser, psutil
 import  wx.lib.mixins.listctrl  as  listmix
-import win32gui
 import _winreg as wreg
 import cPickle as pickle
+import win32api,win32process,win32con
+
 from winpaths import get_appdata
 
 from wx.lib.anchors import LayoutAnchors
@@ -133,17 +134,30 @@ LIST_FILENAME = 0
 LIST_OUTNAME = 1
 LIST_FOLDER = 2
 
+priorityclasses = [win32process.IDLE_PRIORITY_CLASS,
+                           win32process.BELOW_NORMAL_PRIORITY_CLASS,
+                           win32process.NORMAL_PRIORITY_CLASS,
+                           win32process.ABOVE_NORMAL_PRIORITY_CLASS,
+                           win32process.HIGH_PRIORITY_CLASS,
+                           win32process.REALTIME_PRIORITY_CLASS,
+]
+
+priorityNames = [
+    "Idle", "Below Normal", "Normal", "Above Normal", "High", "Realtime",
+]
+
 def create(parent):
     return Frame1(parent)
 
 [wxID_FRAME1, wxID_FRAME1BOTTOM, wxID_FRAME1CHOOSEHBCLI, wxID_FRAME1CLEAR, 
  wxID_FRAME1CLEARCRC, wxID_FRAME1CLEARGRP, wxID_FRAME1ENCODE, 
- wxID_FRAME1ENCODINGTOSTATUS, wxID_FRAME1EXTENSION, wxID_FRAME1OUTPUTFOLDER, 
- wxID_FRAME1PANEL, wxID_FRAME1PANEL1, wxID_FRAME1PAUSERESUME, 
- wxID_FRAME1PRESETLIST, wxID_FRAME1REPLACEEXTENSION, wxID_FRAME1RESETFAILED, 
- wxID_FRAME1STATICTEXT1, wxID_FRAME1STATICTEXT2, wxID_FRAME1STATICTEXT3, 
- wxID_FRAME1STATICTEXT4, wxID_FRAME1STOPENCODE, wxID_FRAME1TITLE, 
-] = [wx.NewId() for _init_ctrls in range(22)]
+ wxID_FRAME1ENCODINGTOSTATUS, wxID_FRAME1EXTENSION, wxID_FRAME1NICE, 
+ wxID_FRAME1OUTPUTFOLDER, wxID_FRAME1PANEL, wxID_FRAME1PANEL1, 
+ wxID_FRAME1PAUSERESUME, wxID_FRAME1PRESETLIST, wxID_FRAME1REPLACEEXTENSION, 
+ wxID_FRAME1RESETFAILED, wxID_FRAME1STATICTEXT1, wxID_FRAME1STATICTEXT2, 
+ wxID_FRAME1STATICTEXT3, wxID_FRAME1STATICTEXT4, wxID_FRAME1STATICTEXT5, 
+ wxID_FRAME1STOPENCODE, wxID_FRAME1TITLE, 
+] = [wx.NewId() for _init_ctrls in range(24)]
 
 class MixSortList(wx.ListCtrl, listmix.ColumnSorterMixin):
     def __init__(self, *args, **kwargs):
@@ -501,7 +515,7 @@ class Frame1(wx.Frame):
 
         self.encodingToStatus = wx.StaticText(id=wxID_FRAME1ENCODINGTOSTATUS,
               label=u'', name=u'encodingToStatus', parent=self.bottom,
-              pos=wx.Point(219, 80), size=wx.Size(0, 13), style=0)
+              pos=wx.Point(6, 125), size=wx.Size(0, 13), style=0)
 
         self.clearGRP = wx.CheckBox(id=wxID_FRAME1CLEARGRP,
               label=u'Try to clear garbage in Filename', name=u'clearGRP',
@@ -511,6 +525,17 @@ class Frame1(wx.Frame):
         self.clearGRP.SetToolTipString(u'Clears garbage in filename, such as brackets with stuff inside.\n\n</b>Example:\n[Rumpel]File_(Season1).avi -> File.avi')
         self.clearGRP.Bind(wx.EVT_CHECKBOX, self.OnClearGRPCheckbox,
               id=wxID_FRAME1CLEARGRP)
+
+        self.nice = wx.Choice(choices=[], id=wxID_FRAME1NICE, name=u'nice',
+              parent=self.bottom, pos=wx.Point(336, 82), size=wx.Size(130, 21),
+              style=0)
+        self.nice.Bind(wx.EVT_CHOICE, self.OnNiceChoice, id=wxID_FRAME1NICE)
+        self.nice.SetToolTipString(u'Selects the encoding process priority ("niceness").\n\n"Below Normal" (default) or "Normal" suggested.')
+
+        self.staticText5 = wx.StaticText(id=wxID_FRAME1STATICTEXT5,
+              label=u'Encoding priority:', name='staticText5',
+              parent=self.bottom, pos=wx.Point(219, 84), size=wx.Size(85, 13),
+              style=0)
 
         self._init_sizers()
 
@@ -588,6 +613,7 @@ class Frame1(wx.Frame):
         self.hbpath = None
         self.appDataPath = get_appdata()
         self.cli = None
+        self.selectedNiceness = 1
         self.getConfig()
         self.getHBPathes()
 
@@ -606,6 +632,7 @@ class Frame1(wx.Frame):
         self.choseExt = "mkv"
         self.presets = SortedDict()
         self.initPresets()
+        self.initNiceness()
 
         if self.lastUsedExt:
             self.extension.SetValue(self.lastUsedExt)
@@ -702,6 +729,10 @@ class Frame1(wx.Frame):
 
         #self.presetList.SetSize(self.presetList.GetBestSize())
         #self.presetList.Fit()
+        
+    def initNiceness(self):
+        self.nice.AppendItems(priorityNames)
+        self.nice.SetSelection(self.selectedNiceness)
 
     def getConfig(self):
         r = WindowsRegistry(company=None, project="HBBatchster", write=1)
@@ -710,7 +741,8 @@ class Frame1(wx.Frame):
         self.cli = r.pget("HBCLIPath") or None
         self.lastUsedPreset = r.pget("lastUsedPreset") or None
         self.lastUsedExt = r.pget("lastUsedExt") or None
-        self.replaceExt = r.pget("replaceExt")
+        self.replaceExt = r.pget("replaceExt") or True
+        self.selectedNiceness = r.pget("niceness") or 1
         r.close()
 
         self.clearCRC.SetValue(self.clearFNCRC)
@@ -725,6 +757,7 @@ class Frame1(wx.Frame):
         r.pset("lastUsedPreset", self.lastUsedPreset)
         r.pset("lastUsedExt", self.lastUsedExt)
         r.pset("replaceExt", self.replaceExt)
+        r.pset("niceness", self.selectedNiceness)
         r.close()
 
     def toggleListActions(self):
@@ -983,6 +1016,8 @@ class Frame1(wx.Frame):
         #pid = wx.Execute(u"%s %s" % (self.cli, launch), wx.EXEC_ASYNC | wx.EXEC_NOHIDE, self.process)
         pid = wx.Execute(u"%s %s" % (self.cli, launch), wx.EXEC_ASYNC, self.process)
         
+        self.setPriority(pid, self.selectedNiceness)
+        
         self.lastPID = pid
         
     def doPauseResume(self, t="p"):
@@ -1016,7 +1051,16 @@ class Frame1(wx.Frame):
             self.pauseResume.SetLabel(u"Pause")
             
         
-        
+    # taken from: http://code.activestate.com/recipes/496767/ (r1)
+    def setPriority(self, pid=None, priority=1):
+        """ Set The Priority of a Windows Process.  Priority is a value between 0-5 where
+            2 is normal priority.  Default sets the priority of the current
+            python process but can take any valid process ID. """
+            
+        if pid == None:
+            pid = win32api.GetCurrentProcessId()
+        handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
+        win32process.SetPriorityClass(handle, priorityclasses[priority])
 
     def OnEncodeButton(self, event):
         self.stopped = False
@@ -1142,4 +1186,11 @@ class Frame1(wx.Frame):
         self.setListExts(".%s" % self.choseExt, changedBool=True)
         self.writeConfig()
         event.Skip()
+
+    def OnNiceChoice(self, event):
+        self.selectedNiceness = event.GetEventObject().GetSelection()
+        self.writeConfig()
+        event.Skip()
+
+
 
