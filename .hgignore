@@ -3,5 +3,6 @@ syntax: glob
 *.bak
 *.wpr
 *.log
+warnapp.txt
 ./trunk/dist/*
 ./trunk/build/*
