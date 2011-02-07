@@ -2,3 +2,6 @@ syntax: glob
 *.pyc
 *.bak
 *.wpr
+*.log
+./trunk/dist/*
+./trunk/build/*
