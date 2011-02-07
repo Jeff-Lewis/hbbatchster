@@ -13,7 +13,7 @@ from wx.lib.anchors import LayoutAnchors
 from wx.lib.embeddedimage import PyEmbeddedImage
 from sorteddict import SortedDict
 
-HBB_VERSION = '1.0.0.2'
+HBB_VERSION = '1.0.0.3'
 
 try:
     from agw import supertooltip as STT

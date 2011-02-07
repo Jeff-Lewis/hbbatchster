@@ -2,9 +2,9 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "HBBatchster"
-#define MyAppVerName "HBBatchster 1.0.0.2"
+#define MyAppVerName "HBBatchster 1.0.0.3"
 #define MyAppPublisher "NoCompany"
-#define MyAppURL "http://www.none.com"
+#define MyAppURL "http://code.google.com/p/hbbatchster/"
 #define MyAppExeName "HBBatchster.exe"
 
 [Setup]
@@ -18,7 +18,7 @@ DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=D:\data\___small\HBBatchster\installer
-OutputBaseFilename=HBBatchster_1.0.0.2
+OutputBaseFilename=HBBatchster_1.0.0.3
 SetupIconFile=D:\data\___small\HBBatchster\handbrakepineapple2.ico
 Compression=lzma
 SolidCompression=yes
