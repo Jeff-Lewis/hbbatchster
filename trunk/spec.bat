@@ -1,0 +1,1 @@
+python25 C:\Python25\pyinstaller\Makespec.py --windowed --out=D:\data\___small\HBBatchster "D:\data\___small\HBBatchster\app.py"
