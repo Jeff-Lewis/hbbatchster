@@ -7,13 +7,13 @@ import _winreg as wreg
 import cPickle as pickle
 import win32api,win32process,win32con
 
-from winpaths import get_appdata
+from winpaths import *
 
 from wx.lib.anchors import LayoutAnchors
 from wx.lib.embeddedimage import PyEmbeddedImage
 from sorteddict import SortedDict
 
-HBB_VERSION = '1.0.0.3 - "infiltrating the honket"'
+HBB_VERSION = '1.0.0.3b - "smudging colours"'
 
 try:
     from agw import supertooltip as STT
@@ -616,6 +616,7 @@ class Frame1(wx.Frame):
         self.selectedNiceness = 1
         self.getConfig()
         self.getHBPathes()
+        self.HBFound(self.gotPaths)
 
         self.encoding = False
         self.stopped = False
@@ -626,6 +627,8 @@ class Frame1(wx.Frame):
         #ib.AddIconFromFile(os.path.join(self.path, "handbrakepineapple2.ico"), wx.BITMAP_TYPE_ICO)
         ib.AddIcon(gethandbrakepineapple2Icon())
         self.SetIcons(ib)    
+        
+        self.defaultColor = wx.Colour(240, 240, 240)
 
 
         self.selectedPreset = None
@@ -662,26 +665,52 @@ class Frame1(wx.Frame):
 
     def getHBPathes(self):
         if self.cli:
-            if os.path.exists(self.cli):
+            if os.path.exists(self.cli) and self.cli.endswith("HandbBakeCLI.exe"):
                 self.hbpath = os.path.split(self.cli)[0]
                 self.SetStatusText(u"Custom HandBrake path reused (%s)" % self.cli, 2)
                 self.gotPaths = True
                 self.chooseHBCLI.SetPath(self.cli)
                 return
+            
+        value = None
 
-        try:
-            x = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Handbrake")
-            value, typ = wreg.QueryValueEx(x, "DisplayIcon")
-            if os.path.exists(value):
-                self.hbpath = os.path.split(value)[0]
-                self.cli = value
+        fromReg = False
+        fromProg = False
+        for p in ["SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Handbrake",\
+                  "SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\HandBrake",]:
+            x = wreg.OpenKey(wreg.HKEY_LOCAL_MACHINE, p)
+            try:
+                value, typ = wreg.QueryValueEx(x, "DisplayIcon")
+            except WindowsError:
+                continue
+            
+            value = os.path.split(value)[0]
+            if os.path.exists(value) and os.path.exists(os.path.join(value, "HandBrakeCLI.exe")):
+                self.gotPaths = True
+                fromReg = True
+                break
 
-        except:
-            pass
-        else:
-            self.gotPaths = True
+        
+        if not self.gotPaths:
+            gpf = os.path.join(get_program_files(), "Handbrake", "HandBrakeCLI.exe")
+            if os.path.exists(gpf):
+                value, exe = os.path.split(gpf)
+                self.gotPaths = True
+                fromProg = True
+        
+        if self.gotPaths:
+            self.hbpath = value
+            self.cli = os.path.join(value, "HandBrakeCLI.exe")
+            
             self.chooseHBCLI.SetPath(self.cli)
-            self.SetStatusText(u"HandBrake path found via registry (%s)" % self.cli, 2)
+            self.SetStatusText(u"HandBrake path found via %s (%s)" % (("registry" if fromReg else "Program Files"), self.cli), 2)   
+
+        
+    def HBFound(self, found):
+        if not found:
+            self.SetStatusText(u"HandBrake path not found. Please set manually", 2) 
+            self.chooseHBCLI.Children[0].SetBackgroundColour(wx.RED)
+            
 
 
     def cliTimer(self, e):
@@ -791,10 +820,15 @@ class Frame1(wx.Frame):
 
     def findOutFileName(self, p, fn, ext):
         add = u""
-        nfn = nfn = u"%s%s.%s" % (fn, add, ext)
+        
+        if fn.endswith(ext):
+            fn = os.path.splitext(fn)[0]
+            
+        nfn = u"%s%s.%s" % (fn, add, ext)            
+            
         while os.path.exists(os.path.join(p, nfn)):
-            nfn = u"%s%s.%s" % (fn, add, ext)
             add += u"_"
+            nfn = u"%s%s.%s" % (fn, add, ext)
         return p, nfn
 
     def listItemStatus(self, i, status):
@@ -810,7 +844,7 @@ class Frame1(wx.Frame):
             
             index = self.drop.list.InsertStringItem(sys.maxint, fn)
 
-            ommit, out = self.findOutFileName(folder, fn, ".%s" % self.choseExt)
+            ommit, out = self.findOutFileName(folder, fn, self.choseExt)
             self.drop.list.SetStringItem(index, 1, out)            
             self.drop.list.SetStringItem(index, 2, folder)
             self.drop.list.SetItemData(index, d)
@@ -819,7 +853,8 @@ class Frame1(wx.Frame):
             self.listItemStatus(index, STATUS_TOENCODE)
             d+=1
 
-        self.toggleListActions()
+        if self.gotPaths:
+            self.toggleListActions()
         self.drop.list.SetColumnWidth(LIST_FILENAME, wx.LIST_AUTOSIZE)
         self.drop.list.SetColumnWidth(LIST_OUTNAME, wx.LIST_AUTOSIZE)
         self.drop.list.SetColumnWidth(LIST_FOLDER, wx.LIST_AUTOSIZE)
@@ -834,7 +869,7 @@ class Frame1(wx.Frame):
 
     def setListExts(self, ext, changedBool = False):
         off = -1
-        ext = ext[1:]
+
         if len(self.drop.itemDataMap) == 0:
             return
         for key, data in self.drop.itemDataMap.iteritems():
@@ -857,7 +892,7 @@ class Frame1(wx.Frame):
                 
                 while nout.endswith(" "):
                     nout = nout[:-1]
-
+                    
                 ommit, nout = self.findOutFileName(data[IDM_FOLDER] if not self.outFolder else self.outFolder, nout, ext)
                 self.drop.itemDataMap[key][IDM_OUTNAME] = nout
                 self.drop.itemDataMap[key][IDM_EXT] = ext
@@ -874,7 +909,7 @@ class Frame1(wx.Frame):
         gf = evt.GetFiles()
         self.lastFileDrop = gf
         self.filesToList(gf)
-        self.setListExts(".%s" % self.choseExt)
+        self.setListExts(self.choseExt)
 
     def OnCloseStream(self, evt):
         self.process.CloseOutput()
@@ -1093,7 +1128,7 @@ class Frame1(wx.Frame):
         if self.presets.has_key(s):
             cat, name, query, ext = self.presets[s]
             self.extension.SetValue(ext)
-            self.setListExts(".%s" % ext)
+            self.setListExts(ext)
             self.toggleListActions()
             self.choseExt = ext
             self.selectedPreset = s
@@ -1105,7 +1140,7 @@ class Frame1(wx.Frame):
 
     def OnExtensionText(self, event):
         v = event.GetEventObject().GetValue()
-        self.setListExts(".%s" % v)
+        self.setListExts(v)
         self.toggleListActions()
         self.choseExt = v
         self.lastUsedExt = v
@@ -1113,13 +1148,13 @@ class Frame1(wx.Frame):
 
     def OnClearCRCCheckbox(self, event):
         self.clearFNCRC = bool(event.GetEventObject().GetValue())
-        self.setListExts(".%s" % (self.extension.GetValue() or "mkv"), True)
+        self.setListExts(self.extension.GetValue() or "mkv", True)
         self.writeConfig()
         event.Skip()
 
     def OnClearGRPCheckbox(self, event):
         self.clearGRPNAME = bool(event.GetEventObject().GetValue())
-        self.setListExts(".%s" % (self.extension.GetValue() or "mkv"), True)
+        self.setListExts(self.extension.GetValue() or "mkv", True)
         self.writeConfig()
         event.Skip()
 
@@ -1141,13 +1176,18 @@ class Frame1(wx.Frame):
 
     def HBPathChosen(self, event):
         self.cli = event.GetEventObject().GetPath()
-        self.hbpath = os.path.split(self.cli)[0]
-        self.writeConfig()
+        if self.cli.endswith("HandBrakeCLI.exe"):
+            self.hbpath = os.path.split(self.cli)[0]
+            self.gotPaths = True
+            self.writeConfig()
+            self.chooseHBCLI.Children[0].SetBackgroundColour(self.defaultColor)
+            self.SetStatusText(u"Found CLI at %s" % self.cli, 2)
+        
         event.Skip()
 
     def OutputFolderChosen(self, event):
         self.outFolder = event.GetEventObject().GetPath()
-        self.setListExts(".%s" % self.choseExt, changedBool = True)
+        self.setListExts(self.choseExt, changedBool = True)
         event.Skip()
 
     def OnStopEncodeButton(self, event):
@@ -1183,7 +1223,7 @@ class Frame1(wx.Frame):
 
     def OnReplaceExtensionCheckbox(self, event):
         self.replaceExt = event.GetEventObject().GetValue()
-        self.setListExts(".%s" % self.choseExt, changedBool=True)
+        self.setListExts(self.choseExt, changedBool=True)
         self.writeConfig()
         event.Skip()
 
